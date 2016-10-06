@@ -45,10 +45,8 @@ public class RequestHandler extends Thread {
         		log.debug("header : {}", line);
         		line = bfReader.readLine();
         	}
-        	//asdfasdf
         	
             DataOutputStream dos = new DataOutputStream(out);
-            //byte[] body = "Hello World!!!!! WTH\n".getBytes();
             
             byte[] body = Files.readAllBytes(new File("./webapp" + tokens[1]).toPath());
             
