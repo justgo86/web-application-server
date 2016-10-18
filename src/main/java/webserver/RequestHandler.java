@@ -19,65 +19,77 @@ import util.HttpRequestUtils;
 import util.IOUtils;
 
 public class RequestHandler extends Thread {
-	
-	private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
-	
-	private Socket connection;
-	
-	public RequestHandler(Socket connectionSocket) {
-		this.connection = connectionSocket;
-	}
-	
-	public void run() {
-		log.debug("New Client Connect! Connected IP : {}, Port : {}", connection.getInetAddress(), connection.getPort());
-		
-		try(InputStream in = connection.getInputStream(); OutputStream out= connection.getOutputStream()){
-			BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
-			
-			String line = br.readLine();
-			log.debug("request line : {}", line);
-			
-			if(line == null){
-				return;
-			}
-			
-			String[] tokens = line.split(" ");
-			int contentLength = 0;
-			
-			while(!line.equals("")){
-				line = br.readLine();
-				if(line.contains("Content-Length")){
-					contentLength = getContentLength(line);
-				}
-				log.debug("header : {}", line);
-			}
-			
-			String url = tokens[1];
-			
-			//url 판별
-			if("/user/create".equals(url)){
-				String body = IOUtils.readData(br, contentLength);
-				
-				Map<String, String> params = HttpRequestUtils.parseQueryString(body);
-				User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
-				log.debug("User : {}", user);
-				url = "/index.html";
-			}else{
-				DataOutputStream dos = new DataOutputStream(out);
-				byte[] body = Files.readAllBytes(new File("./webapp" + url).toPath());
-				response200Header(dos, body.length);
-				responseBody(dos, body);
-			}
-		}catch (IOException e) {
-			// TODO: handle exception
-			log.equals(e.getMessage());
+    private static final Logger log = LoggerFactory.getLogger(RequestHandler.class);
+
+    private Socket connection;
+
+    public RequestHandler(Socket connectionSocket) {
+        this.connection = connectionSocket;
+    }
+
+    public void run() {
+        log.debug("New Client Connect! Connected IP : {}, Port : {}", connection.getInetAddress(),
+                connection.getPort());
+
+        try (InputStream in = connection.getInputStream(); OutputStream out = connection.getOutputStream()) {
+            // TODO 사용자 요청에 대한 처리는 이 곳에 구현하면 된다.
+        	
+        	BufferedReader bfReader = new BufferedReader(new InputStreamReader(in, "UTF-8"));
+        	String line = bfReader.readLine();
+        	
+        	if(line == null){
+        		return ;
+        	}
+        	
+        	String [] tokens = line.split(" ");
+        	int contentLength = 0;
+        	
+        	while(!line.equals("")){
+        		log.debug("header : {}", line);
+        		line = bfReader.readLine();
+        		if(line.contains("Content-Length")){
+        			contentLength = getContentLength(line);
+        		}
+        	}
+        	String url = tokens[1];
+        	if("/user/create".equals(url)){
+        		String body = IOUtils.readData(bfReader, contentLength);
+        		Map<String, String> params = HttpRequestUtils.parseQueryString(body);
+        		
+        		User user = new User(params.get("userId"), params.get("password"), params.get("name"), params.get("email"));
+        		log.debug("user : {}", user);
+        		DataOutputStream dos = new DataOutputStream(out);
+        		response302Header(dos, "/index.html");
+        	}else{
+		        DataOutputStream dos = new DataOutputStream(out);
+		        
+		        byte[] body = Files.readAllBytes(new File("./webapp" + tokens[1]).toPath());
+		        
+		        response200Header(dos, body.length);
+		        responseBody(dos, body);
+        	}
+        } catch (IOException e) {
+            log.error(e.getMessage());
+        }
+    }
+
+	private void response302Header(DataOutputStream dos, String url) {
+		// TODO Auto-generated method stub
+		try{
+			dos.writeBytes("HTTP/1.1 302 Redirect \r\n");
+			dos.writeBytes("Location : "+ url + "\r\n");
+			dos.writeBytes("\r\n");
+		}catch(IOException e){
+			log.error(e.getMessage());
 		}
+		
 	}
-	
+
 	private int getContentLength(String line) {
 		// TODO Auto-generated method stub
-		String[] headerTokens = line.split(":");
-		return Integer.parseInt(headerTokens[1].trim());
+    	
+    	String[] headerTonkens = line.split(":");
+    	return Integer.parseInt(headerTonkens[1].trim());
 	}
 
 	private void response200Header(DataOutputStream dos, int lengthOfBodyContent) {
